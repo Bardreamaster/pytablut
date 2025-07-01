@@ -51,6 +51,9 @@ fi
 # Convert hyphenated package name to underscore format for Python directory
 PACKAGE_NAME_UNDERSCORE=$(echo $PACKAGE_NAME | tr '-' '_')
 
+# Get current year
+CURRENT_YEAR=$(date +%Y)
+
 echo "Initializing Python package:"
 echo "Package Name: $PACKAGE_NAME"
 echo "Python Module Name: $PACKAGE_NAME_UNDERSCORE"
@@ -99,41 +102,13 @@ import $PACKAGE_NAME_UNDERSCORE
 MIT License
 EOF
 
-# Initialize Sphinx documentation
-echo "Initializing Sphinx documentation..."
-
-# Create docs directory if it doesn't exist
-mkdir -p docs
-
-# Check if sphinx-quickstart is installed
-if ! command -v sphinx-quickstart &> /dev/null; then
-    echo "Warning: sphinx-quickstart command not found. Installing sphinx and related packages..."
-    python3 -m pip install -r docs/requirements.txt
-    if [ $? -ne 0 ]; then
-        echo "Error: Failed to install Sphinx and related packages."
-        exit 1
-    fi
-    echo "Sphinx and related packages installed successfully."
-fi
-
-# Run sphinx-quickstart with error handling
-cd docs
-echo "Running sphinx-quickstart..."
-sphinx-quickstart --sep \
-    --no-batchfile \
-    --project "$PACKAGE_NAME" \
-    --author "$AUTHOR_NAME" \
-    --release "0.1.0" \
-    --language en \
-    --makefile \
-    --ext-autodoc \
-    --ext-githubpages \
-    --extensions "sphinx.ext.napoleon,sphinx-copybutton,sphinx_rtd_theme,myst-parser"
-
-if [ $? -ne 0 ]; then
-    echo "Warning: sphinx-quickstart failed."
-    exit 1
-fi
+# Update documentation info
+echo "Updating documentation..."
+sed -i "s/project = \"python_package_template\"/project = \"$PACKAGE_NAME_UNDERSCORE\"/" docs/source/conf.py
+sed -i "s/copyright = \"2025, Wei Jinqi\"/copyright = \"$CURRENT_YEAR, $AUTHOR_NAME\"/" docs/source/conf.py
+sed -i "s/author = \"Wei Jinqi\"/author = \"$AUTHOR_NAME\"/" docs/source/conf.py
+sed -i "s/\"..\/..\/src\/python_package_template\"/\"..\/..\/src\/$PACKAGE_NAME_UNDERSCORE\"/" docs/source/conf.py
+sed -i "s/python_package_template/$PACKAGE_NAME_UNDERSCORE/" docs/source/installation.md
 
 cd ..
 # Get the current directory name
