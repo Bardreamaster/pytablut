@@ -718,6 +718,7 @@ name = "pytablut"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "click" },
     { name = "numpy" },
     { name = "pydantic" },
     { name = "sharklog" },
@@ -740,6 +741,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "click", specifier = ">=8.1.8" },
     { name = "numpy", specifier = ">=2.3.4" },
     { name = "pydantic", specifier = ">=2.12.4" },
     { name = "sharklog", specifier = ">=0.1.1" },
@@ -897,11 +899,11 @@ wheels = [
 
 [[package]]
 name = "sharklog"
-version = "0.1.1"
+version = "0.1.2"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/b2/90/1ff8e5c74a4cc237560ae96c227043bd6af294c4a4d924cf60e0cc5934d7/sharklog-0.1.1.tar.gz", hash = "sha256:19780c16173b7dee49c289bb7f019a5f4bcc253eb4356ecec3fa3949f8331710", size = 7298, upload-time = "2025-06-02T12:58:43.649Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/70/37/e0d09734495fbf2b4268b736d9cdd616e40fdae52a18c6a1fdfe37d490e7/sharklog-0.1.2.tar.gz", hash = "sha256:ccf41d0a1666772564f8fbb2b4b2ba887206b9be365e5b3191b219e738b1d34e", size = 7180, upload-time = "2025-11-08T14:32:46.231Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ea/1b/c1361bbd73cc63fb472b84a32999729ca807f2686073c1512ad52624d10c/sharklog-0.1.1-py3-none-any.whl", hash = "sha256:63065e0b2bbf7b7a2853c606798eeff1b12e7618819bc6435166680d17a02539", size = 6900, upload-time = "2025-06-02T12:58:42.157Z" },
+    { url = "https://files.pythonhosted.org/packages/38/bd/603d4b68740847094be6e7744379a42c84023f0fc37a7cd8d5adba37c010/sharklog-0.1.2-py3-none-any.whl", hash = "sha256:db3b238a96705d9b0eb8ff7246c7d35fdd0515267895bdd3ed3dc84e87804ad8", size = 7036, upload-time = "2025-11-08T14:32:45.089Z" },
 ]
 
 [[package]]

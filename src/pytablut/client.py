@@ -20,7 +20,6 @@ from pytablut.utils import receive_exact_bytes
 
 _logger = sharklog.getLogger()
 
-
 @dataclass
 class PlayerClientConfig:
     role: Role
@@ -30,13 +29,6 @@ class PlayerClientConfig:
     strategy: Strategy = Strategy.HUMAN
 
     def __post_init__(self):
-        if self.role == Role.WHITE:
-            object.__setattr__(self, 'server_port', 5800)
-        elif self.role == Role.BLACK:
-            object.__setattr__(self, 'server_port', 5801)
-        else:
-            assert False, f"invalid role: {self.role}"
-
         if self.name == "":
             object.__setattr__(self, 'name', "WP" if self.role == Role.WHITE else "BP")
 
