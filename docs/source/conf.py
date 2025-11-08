@@ -11,9 +11,9 @@ sys.path.insert(0, os.path.abspath("."))
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = "python_package_template"
-copyright = "2025, Wei Jinqi"
-author = "Wei Jinqi"
+project = "pytablut"
+copyright = "2025, Jinqi Wei"
+author = "Jinqi Wei"
 release = "0.1.0"
 
 # -- General configuration ---------------------------------------------------
@@ -32,7 +32,7 @@ exclude_patterns = []
 
 # Options for autodoc2 extension
 autodoc2_packages = [
-    "../../src/python_package_template",
+    "../../src/pytablut",
 ]
 autodoc2_module_all_regexes = []
 

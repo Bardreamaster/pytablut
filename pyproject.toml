@@ -1,10 +1,10 @@
 [project]
-name = "python-package-template"
+name = "pytablut"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 authors = [
-    { name = "changshan", email = "changshanshi@outlook.com" }
+    { name = "Jinqi Wei", email = "changshanshi@outlook.com" }
 ]
 requires-python = ">=3.12"
 dependencies = []
