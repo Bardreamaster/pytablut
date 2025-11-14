@@ -13,6 +13,7 @@ from pytablut.rules import (
 from pytablut.strategy import (
     AshtonServerGameState2numpy,
     Strategy,
+    evaluate_minimax_move,
     evaluate_random_move,
     index2position,
 )
@@ -27,6 +28,7 @@ class PlayerClientConfig:
     server_ip: str = "localhost"
     server_port: int = 5800
     strategy: Strategy = Strategy.HUMAN
+    timeout: float = 60.0  # in seconds # TODO: implement timeout handling
 
     def __post_init__(self):
         if self.name == "":
@@ -98,6 +100,37 @@ class PlayerClient:
             raise Exception(
                 "No available moves"
             )  # which should not happen because the game should be over.
+        from_pos = index2position(move_indices[0])
+        to_pos = index2position(move_indices[1])
+        return AshtonServerMove(
+            from_=from_pos, to=to_pos, turn=self.player_client_config.role.name
+        )
+
+    def get_minimax_move(self, game_state: AshtonServerGameState, depth: int = 3) -> AshtonServerMove:
+        """Get the best move using minimax algorithm.
+
+        Args:
+            game_state (AshtonServerGameState): The current game state.
+            depth (int): The search depth for minimax (default: 3).
+
+        Returns:
+            AshtonServerMove: The best move found by minimax.
+        """
+        board_array = AshtonServerGameState2numpy(game_state)
+        move_indices = evaluate_minimax_move(
+            board_array, self.player_client_config.role, depth
+        )
+        if move_indices is None:
+            move_indices = evaluate_random_move(
+                board_array, self.player_client_config.role
+            )
+            if move_indices is None:
+                raise Exception(
+                    "No available moves"
+                )  # which should not happen because the game should be over.
+            else:
+                _logger.info(f"No minimax move found, selected random move: {index2position(move_indices[0])} -> {index2position(move_indices[1])}")
+
         from_pos = index2position(move_indices[0])
         to_pos = index2position(move_indices[1])
         return AshtonServerMove(

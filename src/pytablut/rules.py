@@ -10,13 +10,6 @@ class Role(IntEnum):
     BLACK = 2
 
 
-class GameResult(IntEnum):
-    ONGOING = 0
-    WHITE_WIN = 1
-    BLACK_WIN = 2
-    DRAW = 4
-
-
 ASHTON_SERVER_ENCODECODING = "utf-8"
 
 
