@@ -17,14 +17,32 @@ java -jar Executables/Server.jar
 In a new terminal, start one player client:
 
 ```bash
-python3 -m pytablut run client --role white --log info --strategy minimax
+pytablut run client --role white --log info --strategy minimax
 ```
 
 In another terminal, start the second player client:
 
 ```bash
-python3 -m pytablut run client --role black --log info --strategy random
+pytablut run client --role black --log info --strategy random
 ```
+
+## Development
+
+Clone the repository:
+
+```bash
+git clone https://github.com/Bardreamaster/pytablut.git
+cd pytablut
+```
+
+Install development dependencies with uv:
+
+```bash
+uv sync
+```
+
+Run with uv: `uv run pytablut run client` or activate the virtual environment and run directly like normal user.
+
 
 ## License
 
