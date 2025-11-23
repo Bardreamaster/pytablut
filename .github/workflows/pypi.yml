@@ -1,9 +1,9 @@
 name: Build
 
 on:
-  # push:
-  #   tags: ['v*.*.*']
-  #   branches: [ main ]
+  push:
+    tags: ['v*.*.*']
+    branches: [ main ]
   # pull_request:
   #   branches: [ main ]
   workflow_dispatch:  # Allows manual triggering
