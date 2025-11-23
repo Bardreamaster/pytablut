@@ -1,9 +1,11 @@
 import random
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from enum import Enum, IntEnum, IntFlag
 from typing import overload
 
 import numpy as np
 import sharklog
+from timevery import Timer
 
 from pytablut.rules import AshtonServerGameState, Role
 
@@ -50,8 +52,14 @@ ASHTON_MAP = np.array([
     [Cell.NORMAL, Cell.ESCAPE, Cell.ESCAPE, Cell.CAMP,   Cell.CAMP,   Cell.CAMP,   Cell.ESCAPE, Cell.ESCAPE, Cell.NORMAL]
 ]) # fmt: skip
 
+SPECIAL_KING_AREA = (
+    (4, 4), (3, 4), (4, 3), (4, 5), (5, 4)
+)
+
 INF = float('inf')
 NEG_INF = float('-inf')
+
+BIG_NUMBER = 10000
 
 ASHTON_MAP_SHAPE = ASHTON_MAP.shape
 
@@ -385,7 +393,7 @@ def check_captures(board: np.ndarray, moved_to: tuple[int, int]) -> np.ndarray:
             continue
 
         # Special handling for king
-        if target == Checker.WHITE_KING:
+        if target == Checker.WHITE_KING and (target_r, target_c) in SPECIAL_KING_AREA:
             # King requires capture from all 4 sides (or 3 sides + castle)
             # For simplicity, we'll only capture king if surrounded on all 4 sides
             adjacent_enemies = 0
@@ -469,7 +477,7 @@ def is_terminal_state(board: np.ndarray) -> GameStatus:
 
     return GameStatus.ONGOING
 
-# TODO: improve evaluation function
+
 def evaluate_board(board: np.ndarray, role: Role) -> float:
     """Evaluate the board state from the perspective of the given role.
 
@@ -492,53 +500,171 @@ def evaluate_board(board: np.ndarray, role: Role) -> float:
 
     score = 0.0
 
+    WHITE_SOLDER_NUM_FACTOR = 160 / 8
+    BLACK_SOLDER_NUM_FACTOR = 160 / 16
+
+    DIRECT_ESCAPE_PATH_NUM_FACTOR = 20
+
+    WHITE_POSITION_SCORE_FACTOR = 15 / 8
+    BLACK_POSITION_SCORE_FACTOR = 15 / 8
+
+    WHITE_MAP_WEIGHT = np.array([
+        [0.0, 0.4, 0.3, 0.0, 0.0, 0.0, 0.3, 0.4, 0.0],
+        [0.4, 0.4, 0.5, 0.2, 0.0, 0.2, 0.5, 0.4, 0.4],
+        [0.3, 0.5, 0.4, 0.5, 0.3, 0.5, 0.4, 0.5, 0.3],
+        [0.0, 0.2, 0.5, 0.4, 0.3, 0.4, 0.5, 0.2, 0.0],
+        [0.0, 0.0, 0.3, 0.3, 0.0, 0.3, 0.3, 0.0, 0.0],
+        [0.0, 0.2, 0.5, 0.4, 0.3, 0.4, 0.5, 0.2, 0.0],
+        [0.3, 0.5, 0.4, 0.5, 0.3, 0.5, 0.4, 0.5, 0.3],
+        [0.4, 0.4, 0.5, 0.2, 0.0, 0.2, 0.5, 0.4, 0.4],
+        [0.0, 0.4, 0.3, 0.0, 0.0, 0.0, 0.3, 0.4, 0.0]
+    ])
+
+    BLACK_MAP_WEIGHT = np.array([
+        [0.0, 0.1, 0.1, 0.0, 0.0, 0.0, 0.1, 0.1, 0.0],
+        [0.1, 0.2, 0.4, 0.2, 0.0, 0.2, 0.4, 0.2, 0.1],
+        [0.1, 0.4, 0.3, 0.5, 0.2, 0.5, 0.3, 0.4, 0.1],
+        [0.0, 0.2, 0.5, 0.4, 0.2, 0.4, 0.5, 0.2, 0.0],
+        [0.0, 0.0, 0.2, 0.2, 0.0, 0.2, 0.2, 0.0, 0.0],
+        [0.0, 0.2, 0.5, 0.4, 0.2, 0.4, 0.5, 0.2, 0.0],
+        [0.1, 0.4, 0.3, 0.5, 0.2, 0.5, 0.3, 0.4, 0.1],
+        [0.1, 0.2, 0.4, 0.2, 0.0, 0.2, 0.4, 0.2, 0.1],
+        [0.0, 0.1, 0.1, 0.0, 0.0, 0.0, 0.1, 0.1, 0.0]
+    ])
+
     # Material count
     white_soldiers = np.sum(board == Checker.WHITE_SOLDIER)
     black_soldiers = np.sum(board == Checker.BLACK_SOLDIER)
     king_positions = np.argwhere(board == Checker.WHITE_KING)
 
+    def direct_paths_to_escape(board: np.ndarray, king_r: int, king_c: int) -> int:
+        num_paths = 0
+        if np.all(board[0:king_r, king_c] == Checker.EMPTY) and ASHTON_MAP[0, king_c] == Cell.ESCAPE:
+            num_paths += 1
+        if np.all(board[king_r + 1:9, king_c] == Checker.EMPTY) and ASHTON_MAP[8, king_c] == Cell.ESCAPE:
+            num_paths += 1
+        if np.all(board[king_r, 0:king_c] == Checker.EMPTY) and ASHTON_MAP[king_r, 0] == Cell.ESCAPE:
+            num_paths += 1
+        if np.all(board[king_r, king_c + 1:9] == Checker.EMPTY) and ASHTON_MAP[king_r, 8] == Cell.ESCAPE:
+            num_paths += 1
+        return num_paths
+
+    def king_safety_score(board: np.ndarray, king_r: int, king_c: int) -> float:
+
+        safety_score = 0.0
+        directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
+
+        if ASHTON_MAP[king_r, king_c] == Cell.CASTLE:
+            for dr, dc in directions:
+                r, c = king_r + dr, king_c + dc
+                if 0 <= r < 9 and 0 <= c < 9:
+                    if board[r, c] == Checker.BLACK_SOLDIER:
+                        safety_score -= 20.0
+        else:
+            adjacent_to_castle = False
+            for dr, dc in directions:
+                r, c = king_r + dr, king_c + dc
+                if 0 <= r < 9 and 0 <= c < 9:
+                    if ASHTON_MAP[r, c] == Cell.CASTLE:
+                        adjacent_to_castle = True
+                        break
+            if adjacent_to_castle:
+                for dr, dc in directions:
+                    r, c = king_r + dr, king_c + dc
+                    if 0 <= r < 9 and 0 <= c < 9:
+                        if board[r, c] == Checker.BLACK_SOLDIER:
+                            safety_score -= 30.0
+            else:
+                for dr, dc in directions:
+                    r, c = king_r + dr, king_c + dc
+                    if 0 <= r < 9 and 0 <= c < 9:
+                        if board[r, c] == Checker.BLACK_SOLDIER or ASHTON_MAP[r, c] == Cell.CAMP:
+                            safety_score -= 50.0
+
+        up_left_area = ((0,0), (3,3))
+        up_right_area = ((0,5), (3,8))
+        down_left_area = ((5,0), (8,3))
+        down_right_area = ((5,5), (8,8))
+
+        area_safety_table = {
+            0: 50.0,
+            1: 30.0,
+            2: 0.0,
+            3: -50.0,
+            4: -100.0
+        }
+
+        # Check which area the king is in
+        if up_left_area[0][0] <= king_r <= up_left_area[1][0] and up_left_area[0][1] <= king_c <= up_left_area[1][1]:
+            area = up_left_area
+        elif up_right_area[0][0] <= king_r <= up_right_area[1][0] and up_right_area[0][1] <= king_c <= up_right_area[1][1]:
+            area = up_right_area
+        elif down_left_area[0][0] <= king_r <= down_left_area[1][0] and down_left_area[0][1] <= king_c <= down_left_area[1][1]:
+            area = down_left_area
+        elif down_right_area[0][0] <= king_r <= down_right_area[1][0] and down_right_area[0][1] <= king_c <= down_right_area[1][1]:
+            area = down_right_area
+        else:
+            area = None
+
+        if area is not None:
+            black_count = 0
+            for r in range(area[0][0], area[1][0] + 1):
+                for c in range(area[0][1], area[1][1] + 1):
+                    if board[r, c] == Checker.BLACK_SOLDIER:
+                        black_count += 1
+            safety_score += area_safety_table.get(black_count, -100.0)
+
+        return safety_score
+
+    def position_score(board: np.ndarray, role: Role) -> float:
+        pos_score = 0.0
+        if role == Role.WHITE:
+            for r in range(9):
+                for c in range(9):
+                    if board[r, c] == Checker.WHITE_SOLDIER or board[r, c] == Checker.WHITE_KING:
+                        pos_score += WHITE_MAP_WEIGHT[r, c] * WHITE_POSITION_SCORE_FACTOR
+        else:
+            for r in range(9):
+                for c in range(9):
+                    if board[r, c] == Checker.BLACK_SOLDIER:
+                        pos_score += BLACK_MAP_WEIGHT[r, c] * BLACK_POSITION_SCORE_FACTOR
+        return pos_score
+
     if role == Role.WHITE:
-        score += white_soldiers * 10
-        score -= black_soldiers * 10
+        score += white_soldiers * WHITE_SOLDER_NUM_FACTOR
+        score -= black_soldiers * BLACK_SOLDER_NUM_FACTOR
 
-        # King position value
-        if len(king_positions) > 0:
-            king_r, king_c = king_positions[0]
-            # Distance to nearest escape
-            min_escape_dist = 9
-            for r in range(9):
-                for c in range(9):
-                    if ASHTON_MAP[r, c] == Cell.ESCAPE:
-                        dist = abs(king_r - r) + abs(king_c - c)
-                        min_escape_dist = min(min_escape_dist, dist)
+        king_r, king_c = king_positions[0]
 
-            # Reward king being closer to escape
-            score += (9 - min_escape_dist) * 15
+        # Check the number of direct paths to escape
+        num_direct_escape_paths = direct_paths_to_escape(board, king_r, king_c)
+        if num_direct_escape_paths < 2:
+            score += num_direct_escape_paths * DIRECT_ESCAPE_PATH_NUM_FACTOR
+        else:
+            score += BIG_NUMBER / 2
 
-            # Reward king being away from center
-            center_dist = abs(king_r - 4) + abs(king_c - 4)
-            score += center_dist * 5
+        score += king_safety_score(board, king_r, king_c)
+        score += position_score(board, Role.WHITE)
+
     else:
-        score += black_soldiers * 10
-        score -= white_soldiers * 10
+        score += black_soldiers * BLACK_SOLDER_NUM_FACTOR
+        score -= white_soldiers * WHITE_SOLDER_NUM_FACTOR
 
-        # King containment value
-        if len(king_positions) > 0:
-            king_r, king_c = king_positions[0]
-            # Distance to nearest escape
-            min_escape_dist = 9
-            for r in range(9):
-                for c in range(9):
-                    if ASHTON_MAP[r, c] == Cell.ESCAPE:
-                        dist = abs(king_r - r) + abs(king_c - c)
-                        min_escape_dist = min(min_escape_dist, dist)
+        king_r, king_c = king_positions[0]
 
-            # Reward keeping king far from escape
-            score += min_escape_dist * 15
+        # Check the number of direct paths to escape
+        num_direct_escape_paths = direct_paths_to_escape(board, king_r, king_c)
+        if num_direct_escape_paths > 1:
+            # Multiple escape paths is very dangerous for BLACK, but not as bad as actually losing
+            score -= num_direct_escape_paths * DIRECT_ESCAPE_PATH_NUM_FACTOR
+            score -= BIG_NUMBER / 2
+        elif num_direct_escape_paths == 1:
+            score -= num_direct_escape_paths * DIRECT_ESCAPE_PATH_NUM_FACTOR
+        else:
+            score += BIG_NUMBER / 4
 
-            # Reward king being near center
-            center_dist = abs(king_r - 4) + abs(king_c - 4)
-            score -= center_dist * 5
+        score -= king_safety_score(board, king_r, king_c)
+        score += position_score(board, Role.BLACK)
 
     return score
 
@@ -564,13 +690,14 @@ def minimax(
     Returns:
         float: The evaluation score of the best move.
     """
-    # Base case: depth 0 or terminal state
+    # Base case: terminal state or depth 0
     game_status = is_terminal_state(board)
-    if depth == 0 or game_status & GameStatus.TERMINATED:
-        return evaluate_board(board, role)
+    if game_status & GameStatus.TERMINATED or depth == 0:
+        eval_score = evaluate_board(board, role)
+        return eval_score
 
     if maximizing:
-        max_eval = NEG_INF
+        max_eval = -BIG_NUMBER
 
         # Get all pieces for current role
         if role == Role.WHITE:
@@ -595,7 +722,7 @@ def minimax(
         return max_eval
 
     else:
-        min_eval = INF
+        min_eval = BIG_NUMBER
 
         # Get all pieces for opponent
         opponent_role = Role.BLACK if role == Role.WHITE else Role.WHITE
@@ -621,15 +748,54 @@ def minimax(
         return min_eval
 
 
+def _evaluate_piece_moves(args: tuple) -> tuple[tuple[int, int], tuple[int, int], float] | None:
+    """Helper function to evaluate all moves for a single piece (for parallel processing).
+
+    Args:
+        args: Tuple of (board, piece_position, role, depth)
+
+    Returns:
+        tuple[from_pos, to_pos, score] | None: Best move for this piece and its score, or None.
+    """
+    board, pos_tuple, role, depth = args
+
+    moves = get_available_moves(board, pos_tuple)
+    if not moves:
+        return None
+
+    best_move_for_piece = None
+    best_score_for_piece = NEG_INF
+
+    for move in moves:
+        new_board = apply_move(board, pos_tuple, move)
+        score = minimax(new_board, role, depth - 1, NEG_INF, INF, False)
+
+        if score > best_score_for_piece:
+            best_score_for_piece = score
+            best_move_for_piece = (pos_tuple, move)
+
+    if best_move_for_piece:
+        result = (best_move_for_piece[0], best_move_for_piece[1], best_score_for_piece)
+        if best_score_for_piece == INF or best_score_for_piece > BIG_NUMBER:
+            _logger.info(
+                f"[PIECE RESULT] {index2position(pos_tuple)}: best_move={index2position(best_move_for_piece[1])}, "
+                f"score={best_score_for_piece}"
+            )
+        return result
+    return None
+
+
 def evaluate_minimax_move(
-    board: np.ndarray, role: Role, depth: int = 3
+    board: np.ndarray, role: Role, depth: int = 3, timeout: float = 57.0, max_workers: int = 4
 ) -> tuple[tuple[int, int], tuple[int, int]] | None:
-    """Evaluate the best move using the Minimax algorithm with alpha-beta pruning.
+    """Evaluate the best move using the Minimax algorithm with parallel processing.
 
     Args:
         board (np.ndarray): The current board state as a numpy array.
         role (Role): The role of the player.
         depth (int): The depth of the Minimax search (default: 3).
+        timeout (float): The maximum time allowed for computation in seconds (default: 57.0).
+        max_workers (int): Maximum number of parallel processes (default: 4).
 
     Returns:
         tuple[tuple[int, int], tuple[int, int]] | None: A tuple containing the from and to indices of the move,
@@ -637,6 +803,7 @@ def evaluate_minimax_move(
     """
     best_move = None
     best_score = NEG_INF
+    search_timer = Timer(logger=_logger.debug, show_report=True)
 
     # Get all pieces for current role
     if role == Role.WHITE:
@@ -644,25 +811,70 @@ def evaluate_minimax_move(
     else:
         piece_positions = np.argwhere(board == Checker.BLACK_SOLDIER)
 
-    _logger.debug(f"Evaluating minimax for role {role.name} at depth {depth}")
+    _logger.info(f"Evaluating minimax for role {role.name} at depth {depth} with {max_workers} workers")
     _logger.debug(f"Found {len(piece_positions)} pieces to evaluate")
 
-    # Try all possible moves
+    search_timer.start()
+
+    # Prepare tasks for parallel processing
+    tasks = []
     for pos in piece_positions:
         pos_tuple = tuple(pos)
-        moves = get_available_moves(board, pos_tuple)
+        tasks.append((board.copy(), pos_tuple, role, depth))
 
-        for move in moves:
-            new_board = apply_move(board, pos_tuple, move)
-            score = minimax(new_board, role, depth - 1, NEG_INF, INF, False)
+    # Use ProcessPoolExecutor for parallel evaluation
+    executor = ProcessPoolExecutor(max_workers=max_workers)
+    timed_out = False
 
-            _logger.debug(f"Move from {index2position(pos_tuple)} to {index2position(move)}: score = {score}")
+    try:
+        # Submit all tasks
+        future_to_piece = {executor.submit(_evaluate_piece_moves, task): task[1] for task in tasks}
 
-            if score > best_score:
-                best_score = score
-                best_move = (pos_tuple, move)
+        try:
+            # Process results as they complete
+            for future in as_completed(future_to_piece, timeout=timeout):
+                piece_pos = future_to_piece[future]
+                try:
+                    result = future.result(timeout=1.0)  # Short timeout for individual result
+                    if result:
+                        from_pos, to_pos, score = result
+
+                        if score > best_score:
+                            _logger.info(
+                                f"[NEW BEST] {index2position(from_pos)} -> {index2position(to_pos)}: "
+                                f"score={score} (prev best={best_score})"
+                            )
+                            best_score = score
+                            best_move = (from_pos, to_pos)
+
+                    search_timer.lap("one piece evaluation (parallel)")
+                except Exception as e:
+                    _logger.error(f"Error evaluating piece at {index2position(piece_pos)}: {e}")
+
+        except TimeoutError:
+            _logger.warning(f"Minimax evaluation timed out after {timeout}s, using best move found so far")
+            timed_out = True
+            # Cancel remaining futures
+            for future in future_to_piece:
+                future.cancel()
+        except KeyboardInterrupt:
+            _logger.warning("Minimax evaluation interrupted by user")
+            # Cancel all futures on interrupt
+            for future in future_to_piece:
+                future.cancel()
+            raise KeyboardInterrupt
+    finally:
+        # Shutdown executor immediately without waiting if timed out
+        executor.shutdown(wait=not timed_out, cancel_futures=timed_out)
+
+    search_timer.stop()
 
     if best_move:
-        _logger.info(f"Best move: {index2position(best_move[0])} -> {index2position(best_move[1])} (score: {best_score})")
+        _logger.info(
+            f"Best move: {index2position(best_move[0])} -> {index2position(best_move[1])} (score: {best_score})"
+        )
+    else:
+        # TODO: Handle no valid moves found
+        _logger.warning("No valid moves found, falling back to random")
 
     return best_move

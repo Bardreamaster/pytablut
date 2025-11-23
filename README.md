@@ -11,7 +11,7 @@ python3 -m pip install pytablut
 In a terminal, start the [Java Tablut server](https://github.com/AGalassi/TablutCompetition) (assuming you have Java installed):
 
 ```bash
-java -jar Executables/Server.jar
+java -jar Executables/Server.jar -g # Start server with GUI
 ```
 
 In a new terminal, start one player client:
