@@ -1,7 +1,7 @@
 [project]
 name = "pytablut"
 version = "0.1.0"
-description = "Add your description here"
+description = "Tablut Game Implementation in Python"
 readme = "README.md"
 authors = [
     { name = "Jinqi Wei", email = "changshanshi@outlook.com" }
