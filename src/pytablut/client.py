@@ -23,12 +23,12 @@ _logger = sharklog.getLogger()
 
 @dataclass
 class PlayerClientConfig:
-    role: Role
+    role: Role = Role.WHITE
     name: str = "Player"
     server_ip: str = "localhost"
     server_port: int = 5800
     strategy: Strategy = Strategy.HUMAN
-    timeout: float = 60.0  # in seconds # TODO: implement timeout handling
+    timeout: float = 60.0  # in seconds
 
     def __post_init__(self):
         if self.name == "":
@@ -38,17 +38,29 @@ class PlayerClientConfig:
 class PlayerClient:
 
     def __init__(self, player_client_config: PlayerClientConfig = None):
-        self.player_client_config = player_client_config
+        self.config(player_client_config)
         self.socket = None
 
-    def config(self, player_client_config: PlayerClientConfig):
+    def config(self, player_client_config: PlayerClientConfig = None):
+        if player_client_config is None:
+            player_client_config = PlayerClientConfig()
         self.player_client_config = player_client_config
+        self.player_client_config.timeout = max(1, self.player_client_config.timeout - 3)
 
     def connect_game_server(self):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.connect(
-            (self.player_client_config.server_ip, self.player_client_config.server_port)
-        )
+        try:
+            self.socket.connect(
+                (self.player_client_config.server_ip, self.player_client_config.server_port)
+            )
+        except Exception as e:
+            _logger.error(
+                f"Failed to connect to server at "
+                f"{self.player_client_config.server_ip}:"
+                f"{self.player_client_config.server_port}. Error: {e}"
+                " Check if the server is running and reachable."
+            )
+            raise ConnectionError("Could not connect to server") from e
         _logger.debug(
             f"Connected to server at "
             f"{self.player_client_config.server_ip}:"
@@ -118,7 +130,7 @@ class PlayerClient:
         """
         board_array = AshtonServerGameState2numpy(game_state)
         move_indices = evaluate_minimax_move(
-            board_array, self.player_client_config.role, depth
+            board_array, self.player_client_config.role, depth, timeout=self.player_client_config.timeout
         )
         if move_indices is None:
             move_indices = evaluate_random_move(
@@ -143,7 +155,7 @@ class PlayerClient:
         elif self.player_client_config.strategy == Strategy.RANDOM:
             return self.get_random_move(game_state)
         elif self.player_client_config.strategy == Strategy.MINIMAX:
-            return self.get_minimax_move(game_state)
+            return self.get_minimax_move(game_state)    #TODO: handle depth
 
     def start_game(self):
         # 0. Connect to server

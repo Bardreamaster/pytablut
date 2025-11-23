@@ -803,7 +803,7 @@ def evaluate_minimax_move(
     """
     best_move = None
     best_score = NEG_INF
-    search_timer = Timer(logger=_logger.debug, show_report=True)
+    search_timer = Timer(logger=_logger.debug)
 
     # Get all pieces for current role
     if role == Role.WHITE:

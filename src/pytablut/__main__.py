@@ -30,19 +30,25 @@ def run():
 
 @run.command()
 @click.option(
-    '--role',
+    '--role', '-r',
     type=click.Choice(['white', 'black'], case_sensitive=False),
     required=True,
     help='Player role (white or black)'
 )
 @click.option(
-    '--strategy',
-    type=click.Choice(['human', 'random', 'minimax'], case_sensitive=False),
-    default='random',
-    help='Player strategy (default: random)'
+    '--timeout', '-t',
+    type=float,
+    default=60.0,
+    help='Timeout for each move in seconds (default: 60.0)'
 )
 @click.option(
-    '--name',
+    '--strategy', '-s',
+    type=click.Choice(['human', 'random', 'minimax'], case_sensitive=False),
+    default='minimax',
+    help='Player strategy (default: minimax)'
+)
+@click.option(
+    '--name', '-n',
     default='Player',
     help='Player name (default: Player)'
 )
@@ -52,7 +58,7 @@ def run():
     help='Server host (default: localhost)'
 )
 @click.option(
-    '--port',
+    '--port', '-p',
     type=int,
     default=0,
     help='Server port (default: auto-select based on role)'
@@ -68,7 +74,7 @@ def run():
     is_flag=True,
     help="Set logging level to debug"
 )
-def client(role, strategy, name, host, port, log, debug):
+def client(role, strategy, name, timeout, host, port, log, debug):
     """Run a Tablut client."""
     log_level = sharklog.getLevelName(log.upper())
 
@@ -95,7 +101,8 @@ def client(role, strategy, name, host, port, log, debug):
         name=name,
         server_ip=host,
         server_port=port,
-        strategy=strategy_enum
+        strategy=strategy_enum,
+        timeout=timeout,
     )
 
     # Create and start client

@@ -17,13 +17,19 @@ java -jar Executables/Server.jar -g # Start server with GUI
 In a new terminal, start one player client:
 
 ```bash
-pytablut run client --role white --log info --strategy minimax
+pytablut run client -r white -t 60.0 --host localhost
 ```
 
 In another terminal, start the second player client:
 
 ```bash
-pytablut run client --role black --log info --strategy random
+pytablut run client -r black -t 60.0 --host localhost
+```
+
+To see all available options for the client:
+
+```bash
+pytablut run client --help
 ```
 
 ## Development
@@ -46,4 +52,4 @@ Run with uv: `uv run pytablut run client` or activate the virtual environment an
 
 ## License
 
-MIT License
+[MIT License](LICENSE)
