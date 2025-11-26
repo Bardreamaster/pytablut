@@ -419,7 +419,7 @@ def check_captures(board: np.ndarray, moved_to: tuple[int, int]) -> np.ndarray:
 
         # Special cells (castle, camp) can act as allies
         beyond_cell_type = ASHTON_MAP[beyond_r, beyond_c]
-        if beyond_cell_type in (Cell.CASTLE, Cell.CAMP):
+        if beyond_cell_type in (Cell.CASTLE, Cell.CAMP) and ASHTON_MAP[target_r, target_c] != Cell.CAMP:
             is_valid_capture = True
 
         # Apply capture

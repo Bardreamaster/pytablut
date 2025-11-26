@@ -23,14 +23,29 @@ pytablut run client -r white -t 60.0 --host localhost
 In another terminal, start the second player client:
 
 ```bash
-pytablut run client -r black -t 60.0 --host localhost
+pytablut run client -r black -s random
 ```
 
-To see all available options for the client:
+### Using the Python Server
+
+Alternatively, you can use the Python server included in this package. In a terminal, start the Python server:
 
 ```bash
-pytablut run client --help
+pytablut run server
 ```
+
+Then connect clients as shown above.
+
+### Command Options
+
+To see all available options:
+
+```bash
+pytablut run server --help  # Server options
+pytablut run client --help  # Client options
+```
+
+Available strategies: `human`, `random`, `minimax`
 
 ## Development
 

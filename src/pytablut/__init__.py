@@ -6,6 +6,7 @@ _logger.addHandler(sharklog.NullHandler())
 
 from .client import PlayerClient, PlayerClientConfig
 from .rules import Role
+from .server import AshtonServer, AshtonServerConfig
 from .strategy import Strategy
 
 __all__ = [
@@ -13,4 +14,6 @@ __all__ = [
     "Strategy",
     "PlayerClient",
     "PlayerClientConfig",
+    "AshtonServer",
+    "AshtonServerConfig",
 ]
