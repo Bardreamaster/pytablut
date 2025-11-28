@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.abspath("."))
 project = "pytablut"
 copyright = "2025, Jinqi Wei"
 author = "Jinqi Wei"
-release = "0.1.0"
+release = "0.1.1"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration

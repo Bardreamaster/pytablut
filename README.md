@@ -8,10 +8,10 @@ python3 -m pip install pytablut
 
 ## Usage
 
-In a terminal, start the [Java Tablut server](https://github.com/AGalassi/TablutCompetition) (assuming you have Java installed):
+In a terminal, start the Python server:
 
 ```bash
-java -jar Executables/Server.jar -g # Start server with GUI
+pytablut run server
 ```
 
 In a new terminal, start one player client:
@@ -26,15 +26,13 @@ In another terminal, start the second player client:
 pytablut run client -r black -s random
 ```
 
-### Using the Python Server
-
-Alternatively, you can use the Python server included in this package. In a terminal, start the Python server:
+Alternatively, you can use the Java server given in [this repository](https://github.com/AGalassi/TablutCompetition):
 
 ```bash
-pytablut run server
+java -jar Executables/Server.jar -g # Start server with GUI
 ```
 
-Then connect clients as shown above.
+The java server should be used if you are participating in FUNDAMENTALS OF ARTIFICIAL INTELLIGENCE AND KNOWLEDGE REPRESENTATION Course Project competitions.
 
 ### Command Options
 
