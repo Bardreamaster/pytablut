@@ -655,13 +655,11 @@ def evaluate_board(board: np.ndarray, role: Role) -> float:
         # Check the number of direct paths to escape
         num_direct_escape_paths = direct_paths_to_escape(board, king_r, king_c)
         if num_direct_escape_paths > 1:
-            # Multiple escape paths is very dangerous for BLACK, but not as bad as actually losing
-            score -= num_direct_escape_paths * DIRECT_ESCAPE_PATH_NUM_FACTOR
             score -= BIG_NUMBER / 2
         elif num_direct_escape_paths == 1:
-            score -= num_direct_escape_paths * DIRECT_ESCAPE_PATH_NUM_FACTOR
+            score -= BIG_NUMBER / 4
         else:
-            score += BIG_NUMBER / 4
+            pass
 
         score -= king_safety_score(board, king_r, king_c)
         score += position_score(board, Role.BLACK)
