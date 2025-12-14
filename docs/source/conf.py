@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.abspath("."))
 project = "pytablut"
 copyright = "2025, Jinqi Wei"
 author = "Jinqi Wei"
-release = "0.1.1"
+release = "0.1.2"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -24,6 +24,7 @@ extensions = [
     "myst_parser",
     "sphinx_copybutton",
     "sphinx.ext.napoleon",
+    "sphinx.ext.mathjax",
     "sphinx.ext.githubpages",
 ]
 
@@ -50,6 +51,8 @@ autodoc2_docstring_parser_regexes = [
 ## enable md docstring
 myst_enable_extensions = [
     "fieldlist",
+    "dollarmath",
+    "amsmath",
 ]
 
 

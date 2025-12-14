@@ -1,6 +1,6 @@
 [project]
 name = "pytablut"
-version = "0.1.1"
+version = "0.1.2"
 description = "Tablut Game Implementation in Python"
 readme = "README.md"
 authors = [
