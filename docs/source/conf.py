@@ -64,7 +64,7 @@ html_static_path = ["_static"]
 
 # Options for Furo theme
 # TODO: Update these options to match your repository and branch
-source_repository = "https://github.com/Bardreamaster/python-package-template"
+source_repository = "https://github.com/Bardreamaster/pytablut"
 source_branch = "main"
 source_directory = "docs/source/"
 html_theme_options = {
